@@ -45,15 +45,13 @@ import (
 )
 
 const (
-	// RPC requests are made to the native app running
-	appRPC        = "http://localhost"
 	// donut widget constants
 	playTypePercent playType = iota
 	playTypeAbsolute
 )
 
 // optional port variable. example: `gex -p 30057`
-var givenPort = flag.String("p", "26657", "port to connect to as a string")
+var givenNode = flag.String("node", "localhost:26657", "default node to connect to")
 
 // Info describes a list of types with data that are used in the explorer
 type Info struct {
@@ -99,7 +97,7 @@ func main() {
 	networkInfo := getFromRPC("status")
 	networkStatus := gjson.Parse(networkInfo)
 	if !networkStatus.Exists() {
-		panic("Application not running on localhost:" + fmt.Sprintf("%s", *givenPort))
+		panic("node connection failde:" + fmt.Sprintf("%s", *givenNode))
 	}
 
 	genesisInfo := gjson.Parse(getFromRPC("genesis"))
@@ -635,8 +633,8 @@ func writeSecondsPerBlock(ctx context.Context, info Info, t *text.Text, delay ti
 // Exits when the context expires.
 func writeBlocks(ctx context.Context, info Info, t *text.Text, connectionSignal <-chan string) {
 
-	port := *givenPort
-	socket := gowebsocket.New("ws://localhost:" + port + "/websocket")
+	node := *givenNode
+	socket := gowebsocket.New("ws://" + node + "/websocket")
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		currentBlock := gjson.Get(message, "result.data.value.block.header.height")
@@ -676,8 +674,8 @@ func writeBlocks(ctx context.Context, info Info, t *text.Text, connectionSignal 
 // writeBlockDonut continuously changes the displayed percent value on the donut by the
 // step once every delay. Exits when the context expires.
 func writeBlockDonut(ctx context.Context, d *donut.Donut, start, step int, delay time.Duration, pt playType, connectionSignal <-chan string) {
-	port := *givenPort
-	socket := gowebsocket.New("ws://localhost:" + port + "/websocket")
+	node := *givenNode
+	socket := gowebsocket.New("ws://" + node + "/websocket")
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		step := gjson.Get(message, "result.data.value.step")
@@ -734,8 +732,8 @@ func writeBlockDonut(ctx context.Context, d *donut.Donut, start, step int, delay
 // writeTransactions writes the latest Transactions to the transactionsWidget.
 // Exits when the context expires.
 func writeTransactions(ctx context.Context, info Info, t *text.Text, connectionSignal <-chan string) {
-	port := *givenPort
-	socket := gowebsocket.New("ws://localhost:" + port + "/websocket")
+	node := *givenNode
+	socket := gowebsocket.New("ws://" + node + "/websocket")
 
 	socket.OnTextMessage = func(message string, socket gowebsocket.Socket) {
 		currentTx := gjson.Get(message, "result.data.value.TxResult.result.log")
@@ -776,11 +774,11 @@ func writeTransactions(ctx context.Context, info Info, t *text.Text, connectionS
 
 // Get Data from RPC Endpoint
 func getFromRPC(endpoint string) string {
-	port := *givenPort
+	node := *givenNode
 	resp, _ := resty.R().
 		SetHeader("Cache-Control", "no-cache").
 		SetHeader("Content-Type", "application/json").
-		Get(appRPC + ":" + port + "/" + endpoint)
+		Get("http://" + node + "/" + endpoint)
 
 	return resp.String()
 }
